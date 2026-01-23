@@ -1,0 +1,83 @@
+### MCP Server - Demo HTTP Requests
+### Use with the VS Code REST Client extension
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+@localBaseUrl = http://localhost:7071
+
+### Health Check (Local)
+# Shows which agents are registered and their configurations
+GET {{localBaseUrl}}/api/health
+
+###
+
+### Joker Agent (HTTP only)
+# This agent is configured with HTTP trigger only (default)
+POST {{localBaseUrl}}/api/agents/Joker/run
+Content-Type: application/json
+
+{
+  "message": "Tell me a joke about programming.",
+  "thread_id": "joker-thread-001"
+}
+
+###
+
+### PlantAdvisor Agent (HTTP + MCP)
+# This agent is configured with both HTTP and MCP tool triggers
+POST {{localBaseUrl}}/api/agents/PlantAdvisor/run
+Content-Type: application/json
+
+{
+  "message": "What plant would you recommend for a low-light office?",
+  "thread_id": "plant-thread-001"
+}
+
+###
+
+### StockAdvisor Agent - HTTP endpoint disabled
+# Note: This request will fail because StockAdvisor only has MCP trigger enabled
+# It can only be invoked via the MCP protocol, not HTTP
+POST {{localBaseUrl}}/api/agents/StockAdvisor/run
+Content-Type: application/json
+
+{
+  "message": "What's the current price of MSFT?",
+  "thread_id": "stock-thread-001"
+}
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+
+### Health Check (Azure)
+GET {{azureBaseUrl}}/api/health
+
+###
+
+### Joker Agent (Azure)
+POST {{azureBaseUrl}}/api/agents/Joker/run
+Content-Type: application/json
+
+{
+  "message": "Tell me a joke about the cloud.",
+  "thread_id": "azure-joker-001"
+}
+
+###
+
+### PlantAdvisor Agent (Azure)
+POST {{azureBaseUrl}}/api/agents/PlantAdvisor/run
+Content-Type: application/json
+
+{
+  "message": "What plants are good for air purification?",
+  "thread_id": "azure-plant-001"
+}

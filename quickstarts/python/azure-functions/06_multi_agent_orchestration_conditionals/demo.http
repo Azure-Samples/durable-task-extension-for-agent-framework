@@ -1,0 +1,80 @@
+### Multi-Agent Orchestration Conditionals - Demo HTTP Requests
+### Use with the VS Code REST Client extension
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+@localBaseUrl = http://localhost:7071
+
+### Health Check (Local)
+GET {{localBaseUrl}}/api/health
+
+###
+
+### Test spam detection with a legitimate email (Local)
+# @name legitimateEmail
+POST {{localBaseUrl}}/api/spamdetection/run
+Content-Type: application/json
+
+{
+  "email_id": "email-001",
+  "email_content": "Hi John, I hope you're doing well. I wanted to follow up on our meeting yesterday about the quarterly report. Could you please send me the updated figures by Friday? Thanks!"
+}
+
+###
+
+### Check the status of the legitimate email orchestration (Local)
+@legitimateInstanceId = {{legitimateEmail.response.body.$.instanceId}}
+
+GET {{localBaseUrl}}/api/spamdetection/status/{{legitimateInstanceId}}
+
+###
+
+### Test spam detection with a spam email (Local)
+# @name spamEmail
+POST {{localBaseUrl}}/api/spamdetection/run
+Content-Type: application/json
+
+{
+  "email_id": "email-002",
+  "email_content": "URGENT! You've won $1,000,000! Click here now to claim your prize! Limited time offer! Don't miss out!"
+}
+
+###
+
+### Check the status of the spam email orchestration (Local)
+@spamInstanceId = {{spamEmail.response.body.$.instanceId}}
+
+GET {{localBaseUrl}}/api/spamdetection/status/{{spamInstanceId}}
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+
+### Health Check (Azure)
+GET {{azureBaseUrl}}/api/health
+
+###
+
+### Test spam detection with a legitimate email (Azure)
+# @name azureLegitimate
+POST {{azureBaseUrl}}/api/spamdetection/run
+Content-Type: application/json
+
+{
+  "email_id": "azure-email-001",
+  "email_content": "Dear Team, Please review the attached proposal for our Q2 marketing campaign. Let me know your thoughts by EOD Wednesday. Best regards, Sarah"
+}
+
+###
+
+### Check status (Azure)
+@azureInstanceId = {{azureLegitimate.response.body.$.instanceId}}
+
+GET {{azureBaseUrl}}/api/spamdetection/status/{{azureInstanceId}}

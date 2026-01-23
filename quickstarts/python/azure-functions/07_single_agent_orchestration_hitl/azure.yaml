@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: agent-framework-07-orchestration-hitl
+metadata:
+  template: agent-framework-orchestration-hitl@0.0.1
+services:
+  api:
+    project: .
+    language: python
+    host: function

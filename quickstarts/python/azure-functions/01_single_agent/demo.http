@@ -1,0 +1,64 @@
+### Joker Agent Sample Interactions
+### Use with the VS Code REST Client extension
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+@localBaseUrl = http://localhost:7071
+@agentName = Joker
+@localAgentRoute = {{localBaseUrl}}/api/agents/{{agentName}}
+@localHealthRoute = {{localBaseUrl}}/api/health
+
+### Health Check (Local)
+GET {{localHealthRoute}}
+
+###
+
+### Ask for a joke (JSON payload) - Local
+POST {{localAgentRoute}}/run
+Content-Type: application/json
+
+{
+  "message": "Add a security element to it.",
+  "thread_id": "thread-001"
+}
+
+###
+
+### Ask for a joke (plain text payload) - Local
+POST {{localAgentRoute}}/run
+
+Give me a programming joke about race conditions.
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+@azureAgentRoute = {{azureBaseUrl}}/api/agents/{{agentName}}
+@azureHealthRoute = {{azureBaseUrl}}/api/health
+
+### Health Check (Azure)
+GET {{azureHealthRoute}}
+
+###
+
+### Ask for a joke (JSON payload) - Azure
+POST {{azureAgentRoute}}/run
+Content-Type: application/json
+
+{
+  "message": "Tell me a joke about Azure Functions.",
+  "thread_id": "azure-thread-001"
+}
+
+###
+
+### Ask for a joke (plain text payload) - Azure
+POST {{azureAgentRoute}}/run
+
+Give me a cloud computing joke about serverless.

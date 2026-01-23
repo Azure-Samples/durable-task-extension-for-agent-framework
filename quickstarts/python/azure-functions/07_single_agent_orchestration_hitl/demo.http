@@ -1,0 +1,109 @@
+### Human-in-the-Loop (HITL) Orchestration - Demo HTTP Requests
+### Use with the VS Code REST Client extension
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+@localBaseUrl = http://localhost:7071
+
+### Health Check (Local)
+GET {{localBaseUrl}}/api/health
+
+###
+
+### Start the HITL content generation orchestration with default timeout (72 hours)
+# @name hitlStart
+POST {{localBaseUrl}}/api/hitl/run
+Content-Type: application/json
+
+{
+  "topic": "The Future of Artificial Intelligence",
+  "max_review_attempts": 3
+}
+
+###
+
+### Start the HITL orchestration with a short timeout (~4 seconds) for testing
+# @name hitlShort
+POST {{localBaseUrl}}/api/hitl/run
+Content-Type: application/json
+
+{
+  "topic": "The Future of Artificial Intelligence",
+  "max_review_attempts": 3,
+  "approval_timeout_hours": 0.001
+}
+
+###
+
+### Replace with the instance ID from the response above
+@instanceId = {{hitlStart.response.body.$.instanceId}}
+
+### Check the status of the orchestration
+GET {{localBaseUrl}}/api/hitl/status/{{instanceId}}
+
+###
+
+### Send human approval (approves the content)
+POST {{localBaseUrl}}/api/hitl/approve/{{instanceId}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "feedback": "Great article! The content is well-structured and informative."
+}
+
+###
+
+### Send human rejection with feedback (triggers rewrite)
+POST {{localBaseUrl}}/api/hitl/approve/{{instanceId}}
+Content-Type: application/json
+
+{
+  "approved": false,
+  "feedback": "The article needs more technical depth and better examples."
+}
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+
+### Health Check (Azure)
+GET {{azureBaseUrl}}/api/health
+
+###
+
+### Start HITL orchestration (Azure)
+# @name azureHitl
+POST {{azureBaseUrl}}/api/hitl/run
+Content-Type: application/json
+
+{
+  "topic": "Cloud Computing Best Practices",
+  "max_review_attempts": 3,
+  "approval_timeout_hours": 24
+}
+
+###
+
+### Check status (Azure)
+@azureInstanceId = {{azureHitl.response.body.$.instanceId}}
+
+GET {{azureBaseUrl}}/api/hitl/status/{{azureInstanceId}}
+
+###
+
+### Approve content (Azure)
+POST {{azureBaseUrl}}/api/hitl/approve/{{azureInstanceId}}
+Content-Type: application/json
+
+{
+  "approved": true,
+  "feedback": "Excellent content!"
+}

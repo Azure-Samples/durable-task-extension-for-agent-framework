@@ -1,0 +1,64 @@
+### Multi-Agent Orchestration Concurrency - Demo HTTP Requests
+### Use with the VS Code REST Client extension
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+@localBaseUrl = http://localhost:7071
+
+### Health Check (Local)
+GET {{localBaseUrl}}/api/health
+
+###
+
+### Start the multi-agent concurrent orchestration (Local)
+# @name localOrchestration
+POST {{localBaseUrl}}/api/multiagent/run
+Content-Type: text/plain
+
+What is temperature?
+
+###
+
+### Check the status of the orchestration (Local)
+@localInstanceId = {{localOrchestration.response.body.$.instanceId}}
+
+GET {{localBaseUrl}}/api/multiagent/status/{{localInstanceId}}
+
+###
+
+### Another example: Ask about energy
+# @name localEnergy
+POST {{localBaseUrl}}/api/multiagent/run
+Content-Type: text/plain
+
+Explain the concept of energy.
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+
+### Health Check (Azure)
+GET {{azureBaseUrl}}/api/health
+
+###
+
+### Start the multi-agent concurrent orchestration (Azure)
+# @name azureOrchestration
+POST {{azureBaseUrl}}/api/multiagent/run
+Content-Type: text/plain
+
+What causes lightning?
+
+###
+
+### Check the status of the orchestration (Azure)
+@azureInstanceId = {{azureOrchestration.response.body.$.instanceId}}
+
+GET {{azureBaseUrl}}/api/multiagent/status/{{azureInstanceId}}

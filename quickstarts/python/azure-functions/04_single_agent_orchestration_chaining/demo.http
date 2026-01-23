@@ -1,0 +1,50 @@
+### Single Agent Orchestration Chaining - Demo HTTP Requests
+### Use with the VS Code REST Client extension
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+@localBaseUrl = http://localhost:7071
+
+### Health Check (Local)
+GET {{localBaseUrl}}/api/health
+
+###
+
+### Start the single-agent orchestration (Local)
+# @name localOrchestration
+POST {{localBaseUrl}}/api/singleagent/run
+
+###
+
+### Check the status of the orchestration (Local)
+# Replace with the instance ID from the response above
+@localInstanceId = {{localOrchestration.response.body.$.instanceId}}
+
+GET {{localBaseUrl}}/api/singleagent/status/{{localInstanceId}}
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+
+### Health Check (Azure)
+GET {{azureBaseUrl}}/api/health
+
+###
+
+### Start the single-agent orchestration (Azure)
+# @name azureOrchestration
+POST {{azureBaseUrl}}/api/singleagent/run
+
+###
+
+### Check the status of the orchestration (Azure)
+@azureInstanceId = {{azureOrchestration.response.body.$.instanceId}}
+
+GET {{azureBaseUrl}}/api/singleagent/status/{{azureInstanceId}}

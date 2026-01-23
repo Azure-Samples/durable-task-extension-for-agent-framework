@@ -1,0 +1,83 @@
+### DAFx Multi-Agent Function App - HTTP Samples
+### Use with the VS Code REST Client extension or any HTTP client
+###
+### API Structure:
+### - POST /api/agents/{agentName}/run  -> Send a message to an agent
+### - GET  /api/health                  -> Health check and agent metadata
+
+### =====================================================
+### Local Development Endpoints
+### =====================================================
+
+### Variables
+@localBaseUrl = http://localhost:7071
+@weatherAgentName = WeatherAgent
+@mathAgentName = MathAgent
+@localWeatherAgentRoute = {{localBaseUrl}}/api/agents/{{weatherAgentName}}
+@localMathAgentRoute = {{localBaseUrl}}/api/agents/{{mathAgentName}}
+@localHealthRoute = {{localBaseUrl}}/api/health
+
+### Health Check (Local)
+# Confirms the Azure Functions app is running and both agents are registered
+GET {{localHealthRoute}}
+
+###
+
+### Weather Agent - Current Conditions (Local)
+# Tests the Weather agent's tool-assisted response path
+POST {{localWeatherAgentRoute}}/run
+Content-Type: application/json
+
+{
+  "message": "What is the weather in Seattle?",
+  "thread_id": "weather-user-001"
+}
+
+###
+
+### Math Agent - Tip Calculation (Local)
+# Exercises the Math agent with a calculation request
+POST {{localMathAgentRoute}}/run
+Content-Type: application/json
+
+{
+  "message": "Calculate a 20% tip on a $50 bill",
+  "thread_id": "math-user-001"
+}
+
+###
+
+### =====================================================
+### Azure Deployed Endpoints
+### Replace <your-function-app-name> with your actual Function App name
+### =====================================================
+
+@azureBaseUrl = https://<your-function-app-name>.azurewebsites.net
+@azureWeatherAgentRoute = {{azureBaseUrl}}/api/agents/{{weatherAgentName}}
+@azureMathAgentRoute = {{azureBaseUrl}}/api/agents/{{mathAgentName}}
+@azureHealthRoute = {{azureBaseUrl}}/api/health
+
+### Health Check (Azure)
+GET {{azureHealthRoute}}
+
+###
+
+### Weather Agent - Current Conditions (Azure)
+POST {{azureWeatherAgentRoute}}/run
+Content-Type: application/json
+
+{
+  "message": "What is the weather in New York?",
+  "thread_id": "azure-weather-001"
+}
+
+###
+
+### Math Agent - Tip Calculation (Azure)
+POST {{azureMathAgentRoute}}/run
+Content-Type: application/json
+
+{
+  "message": "Calculate a 15% tip on a $85 bill",
+  "thread_id": "azure-math-001"
+}

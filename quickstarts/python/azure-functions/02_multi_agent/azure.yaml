@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: agent-framework-02-multi-agent
+metadata:
+  template: agent-framework-multi-agent@0.0.1
+services:
+  api:
+    project: .
+    language: python
+    host: function
