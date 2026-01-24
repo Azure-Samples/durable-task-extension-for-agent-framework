@@ -44,6 +44,9 @@ def _get_credential():
     return DefaultAzureCredential()
 
 # Configuration
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
+REDIS_USE_ENTRA_ID = os.environ.get("REDIS_USE_ENTRA_ID", "false").lower() == "true"
 REDIS_CONNECTION_STRING = os.environ.get("REDIS_CONNECTION_STRING", "redis://localhost:6379")
 REDIS_STREAM_TTL_MINUTES = int(os.environ.get("REDIS_STREAM_TTL_MINUTES", "10"))
 
@@ -53,13 +56,45 @@ async def get_stream_handler() -> RedisStreamResponseHandler:
 
     This avoids event loop conflicts in Azure Functions by creating
     a fresh Redis client in the current event loop context.
+
+    Supports both Entra ID authentication (for Azure) and connection string (for local dev).
     """
-    # Create a new Redis client in the current event loop
-    redis_client = aioredis.from_url(
-        REDIS_CONNECTION_STRING,
-        encoding="utf-8",
-        decode_responses=False,
-    )
+    if REDIS_USE_ENTRA_ID:
+        # Use Entra ID authentication for Azure Cache for Redis
+        from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+        from azure.identity.aio import ManagedIdentityCredential as AsyncManagedIdentityCredential
+
+        client_id = os.environ.get("AZURE_CLIENT_ID")
+        principal_id = os.environ.get("AZURE_PRINCIPAL_ID")  # Object ID of the managed identity
+
+        if client_id:
+            credential = AsyncManagedIdentityCredential(client_id=client_id)
+        else:
+            credential = AsyncDefaultAzureCredential()
+
+        # Get token for Redis scope
+        token = await credential.get_token("https://redis.azure.com/.default")
+
+        # For Entra ID auth, username must be the principal ID (object ID), not client ID
+        # If principal_id not set, use the default built-in access policy name
+        username = principal_id if principal_id else client_id
+
+        # Create Redis client with token-based auth
+        redis_client = aioredis.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            ssl=True,
+            username=username,
+            password=token.token,
+            decode_responses=False,
+        )
+    else:
+        # Use connection string for local development
+        redis_client = aioredis.from_url(
+            REDIS_CONNECTION_STRING,
+            encoding="utf-8",
+            decode_responses=False,
+        )
 
     return RedisStreamResponseHandler(
         redis_client=redis_client,

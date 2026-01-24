@@ -80,6 +80,15 @@ param modelLocation string = location
 @description('The AI Service Account full ARM Resource ID. Optional - if not provided, the resource will be created.')
 param aiServiceAccountResourceId string = ''
 
+@description('Name of the Redis Cache')
+param redisCacheName string = ''
+
+@description('Redis Cache SKU')
+param redisCacheSkuName string = 'Basic'
+
+@description('Redis Cache capacity (0-6 for Basic/Standard, 1-4 for Premium)')
+param redisCacheCapacity int = 0
+
 // Variables
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, rg.id, environmentName, location))
@@ -175,6 +184,39 @@ module storage 'br/public:avm/res/storage/storage-account:0.14.3' = {
   }
 }
 
+// Redis Cache for reliable streaming using AVM with Entra ID authentication
+module redisCache 'br/public:avm/res/cache/redis:0.8.1' = {
+  scope: rg
+  name: 'redisCache-${resourceToken}'
+  params: {
+    name: !empty(redisCacheName) ? redisCacheName : '${abbrs.cacheRedis}${resourceToken}'
+    location: location
+    tags: tags
+    skuName: redisCacheSkuName
+    capacity: redisCacheCapacity
+    redisVersion: '6'
+    minimumTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
+    enableNonSslPort: false
+    disableAccessKeyAuthentication: true
+    redisConfiguration: {
+      'aad-enabled': 'true'
+    }
+    accessPolicyAssignments: [
+      {
+        accessPolicyName: 'Data Contributor'
+        objectId: apiUserAssignedIdentity.outputs.principalId
+        objectIdAlias: 'api-identity'
+      }
+      {
+        accessPolicyName: 'Data Contributor'
+        objectId: principalId
+        objectIdAlias: 'deployer-user'
+      }
+    ]
+  }
+}
+
 // App Service Plan using AVM - Flex Consumption
 module appServicePlan 'br/public:avm/res/web/serverfarm:0.3.0' = {
   name: 'appserviceplan-${resourceToken}'
@@ -236,8 +278,12 @@ module api 'br/public:avm/res/web/site:0.11.1' = {
         { name: 'AZURE_OPENAI_ENDPOINT', value: aiServiceExists ? reference(aiServiceAccountResourceId, '2023-05-01').endpoint : aiServices.outputs.endpoint }
         { name: 'AZURE_OPENAI_CHAT_DEPLOYMENT_NAME', value: modelName }
         { name: 'AZURE_CLIENT_ID', value: apiUserAssignedIdentity.outputs.clientId }
+        { name: 'AZURE_PRINCIPAL_ID', value: apiUserAssignedIdentity.outputs.principalId }
         { name: 'APPLICATIONINSIGHTS_AUTHENTICATION_STRING', value: 'ClientId=${apiUserAssignedIdentity.outputs.clientId};Authorization=AAD' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: monitoring.outputs.connectionString }
+        { name: 'REDIS_HOST', value: redisCache.outputs.hostName }
+        { name: 'REDIS_PORT', value: string(redisCache.outputs.sslPort) }
+        { name: 'REDIS_USE_ENTRA_ID', value: 'true' }
       ]
     }
   }
@@ -370,3 +416,5 @@ output AZURE_FUNCTION_APP_NAME string = api.outputs.name
 output RESOURCE_GROUP string = rg.name
 output AZURE_OPENAI_ENDPOINT string = aiServiceExists ? reference(aiServiceAccountResourceId, '2023-05-01').endpoint : aiServices.outputs.endpoint
 output AZURE_OPENAI_DEPLOYMENT_NAME string = modelName
+output REDIS_HOST string = redisCache.outputs.hostName
+output REDIS_SSL_PORT int = redisCache.outputs.sslPort
