@@ -1,0 +1,128 @@
+### Travel Planner API Test File
+### Use this to test the conversational agent without the frontend
+
+@baseUrl = http://localhost:7071/api
+
+# =============================================================================
+# 1. Create a new conversation with ALL trip details upfront
+# =============================================================================
+# This provides everything the agent needs to call PlanTrip immediately
+
+### Start planning with complete details
+# @name createConversation
+POST {{baseUrl}}/agent/create
+Content-Type: text/plain
+Accept: text/plain
+
+Hi! I'm John Smith and I'd like to plan a trip. Here are all my details:
+- Preferences: beach and relaxation with some cultural experiences
+- Duration: 7 days
+- Budget: $5000 USD
+- Travel dates: March 15-22, 2026
+- Special requirements: vegetarian meals preferred
+
+Please start planning my trip!
+
+###
+
+# =============================================================================
+# 2. Follow-up messages (use conversationId from previous response)
+# =============================================================================
+
+@conversationId = <paste-conversation-id-here>
+
+### Check on progress
+POST {{baseUrl}}/agent/chat/{{conversationId}}
+Content-Type: text/plain
+Accept: text/plain
+
+How is my trip planning going?
+
+###
+
+### Ask about the plan details
+POST {{baseUrl}}/agent/chat/{{conversationId}}
+Content-Type: text/plain
+Accept: text/plain
+
+What restaurants did you recommend?
+
+###
+
+### Ask about itinerary
+POST {{baseUrl}}/agent/chat/{{conversationId}}
+Content-Type: text/plain
+Accept: text/plain
+
+What are we doing on day 2?
+
+###
+
+### Approve the trip
+POST {{baseUrl}}/agent/chat/{{conversationId}}
+Content-Type: text/plain
+Accept: text/plain
+
+Yes, please approve and book this trip!
+
+###
+
+### Reject the trip
+POST {{baseUrl}}/agent/chat/{{conversationId}}
+Content-Type: text/plain
+Accept: text/plain
+
+Actually, I'd like to reject this plan. The budget is too high.
+
+###
+
+# =============================================================================
+# 3. Alternative: Adventure trip request
+# =============================================================================
+
+### Adventure trip
+POST {{baseUrl}}/agent/create
+Content-Type: text/plain
+Accept: text/plain
+
+I'm Sarah Johnson looking for an adventure trip.
+- Type: adventure and hiking
+- Duration: 5 days
+- Budget: $3000 USD
+- Dates: April 1-5, 2026
+- Requirements: I need wheelchair accessible accommodations
+
+Start planning!
+
+###
+
+# =============================================================================
+# 4. Direct orchestration status (if you have the orchestration ID)
+# =============================================================================
+
+@orchestrationId = <paste-orchestration-id-here>
+
+### Get orchestration status directly
+GET {{baseUrl}}/agent/orchestration/{{orchestrationId}}
+
+###
+
+### Approve orchestration directly (bypassing the agent)
+POST {{baseUrl}}/agent/orchestration/{{orchestrationId}}/approve
+Content-Type: application/json
+
+{
+    "approved": true,
+    "comments": "Looks great, book it!"
+}
+
+###
+
+### Reject orchestration directly
+POST {{baseUrl}}/agent/orchestration/{{orchestrationId}}/approve
+Content-Type: application/json
+
+{
+    "approved": false,
+    "comments": "Too expensive, please find cheaper options"
+}

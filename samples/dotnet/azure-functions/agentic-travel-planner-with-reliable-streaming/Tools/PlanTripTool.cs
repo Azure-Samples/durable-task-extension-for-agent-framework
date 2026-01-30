@@ -1,13 +1,15 @@
-// =============================================================================
-// PlanTripTool.cs - AI Agent Tool for Orchestration Invocation
-// =============================================================================
-// This tool bridges the conversational agent with the Durable Functions
-// orchestration. When the conversational agent has collected all required
-// information from the user, it calls PlanTrip to start the orchestration.
+// ============================================================================
+// PlanTripTool.cs - AI Agent Tools for Trip Planning
+// ============================================================================
+// Provides tools for the conversational agent to:
+// - Start trip planning orchestrations
+// - Check orchestration status
+// - Retrieve trip plan details (so the agent knows what was planned)
+// - Approve or reject travel plans
 //
-// Uses DurableAgentContext.Current to schedule orchestrations from within
-// tool calls, following the long-running tools pattern from the agent framework.
-// =============================================================================
+// All tools return structured data - the agent decides how to communicate
+// results to the user, making this a true agentic pattern.
+// ============================================================================
 
 // Copyright (c) Microsoft. All rights reserved.
 
@@ -16,7 +18,6 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.DurableTask;
-using Microsoft.Agents.AI.Hosting.AzureFunctions;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
@@ -26,118 +27,101 @@ using TravelPlannerFunctions.Models;
 namespace TravelPlannerFunctions.Tools;
 
 /// <summary>
-/// AI agent tool that enables the conversational agent to start the travel
-/// planning orchestration once all required information has been collected.
-/// Uses DurableAgentContext.Current to access orchestration scheduling from tool calls.
+/// AI agent tools for trip planning orchestration.
 /// </summary>
 public sealed class PlanTripTool
 {
-    // =========================================================================
-    // Static Context for Orchestration Tracking
-    // =========================================================================
-    
-    /// <summary>
-    /// Thread-safe dictionary that tracks conversations where an orchestration was scheduled.
-    /// The response handler checks this to determine whether to send the "done" marker
-    /// (if no orchestration) or let the orchestration send it (if one was scheduled).
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, bool> _orchestrationsScheduled = new();
-    
-    /// <summary>
-    /// Marks that an orchestration was scheduled for the given conversation.
-    /// The response handler should NOT send "done" for this conversation.
-    /// </summary>
-    public static void MarkOrchestrationScheduled(string conversationId)
+    // Tracks active orchestrations by conversation ID to prevent duplicates
+    private static readonly ConcurrentDictionary<string, string> _activeOrchestrations = new();
+
+    public static void TrackOrchestration(string conversationId, string orchestrationId)
     {
-        _orchestrationsScheduled[conversationId] = true;
-    }
-    
-    /// <summary>
-    /// Checks if an orchestration was scheduled for the given conversation
-    /// and clears the flag if it was set.
-    /// </summary>
-    /// <returns>True if an orchestration was scheduled; false otherwise.</returns>
-    public static bool ConsumeOrchestrationScheduled(string conversationId)
-    {
-        return _orchestrationsScheduled.TryRemove(conversationId, out _);
+        _activeOrchestrations[conversationId] = orchestrationId;
     }
 
-    // =========================================================================
-    // Dependencies (injected via constructor)
-    // =========================================================================
-    
+    public static string? GetActiveOrchestration(string conversationId)
+    {
+        return _activeOrchestrations.TryGetValue(conversationId, out var id) ? id : null;
+    }
+
     private readonly ILogger<PlanTripTool> _logger;
-    
-    /// <summary>
-    /// Creates a new instance of PlanTripTool with required dependencies.
-    /// </summary>
-    /// <param name="logger">Logger for diagnostic output.</param>
+
     public PlanTripTool(ILogger<PlanTripTool> logger)
     {
         _logger = logger;
     }
 
     // =========================================================================
-    // AI Agent Tool Methods
-    // =========================================================================
-    // These methods are exposed to the AI agent via [Description] attributes.
-    // The agent calls these when it determines user intent matches the tool.
-    // Uses DurableAgentContext.Current to schedule orchestrations.
+    // Tool: Start Trip Planning
     // =========================================================================
 
     /// <summary>
-    /// Plans a trip by starting the travel planner orchestration with the collected information.
-    /// Call this function when you have gathered all required travel details from the user.
+    /// Starts the trip planning process by scheduling an orchestration.
     /// </summary>
-    [Description("Plans a trip by starting the travel planning process. Call this when you have collected: user name, travel preferences, duration in days, budget, travel dates, and any special requirements from the user.")]
-    public string PlanTrip(
+    [Description(@"Starts the trip planning process. Call this when you have collected all required information from the user.
+Returns structured data about the orchestration - use this to inform the user that planning has started.
+The orchestration will run in the background, finding destinations, creating itineraries, and gathering recommendations.")]
+    public PlanTripToolResult PlanTrip(
         [Description("The traveler's full name")] string userName,
-        [Description("Detailed travel preferences describing the type of vacation desired")] string preferences,
-        [Description("Number of days for the trip (minimum 1, maximum 30)")] int durationInDays,
-        [Description("Budget for the trip including currency and amount")] string budget,
+        [Description("Travel preferences (beach, adventure, cultural, relaxation, etc.)")] string preferences,
+        [Description("Number of days for the trip (1-30)")] int durationInDays,
+        [Description("Budget including currency (e.g., '$5000 USD')")] string budget,
         [Description("Preferred travel dates or date range")] string travelDates,
-        [Description("Special requirements like dietary restrictions, accessibility needs, or travel companions")] string specialRequirements = "")
+        [Description("Special requirements (dietary, accessibility, etc.)")] string specialRequirements = "")
     {
         _logger.LogInformation("PlanTrip tool called for user {UserName}", userName);
 
-        // Validate inputs
+        // Validate inputs - return structured errors
         if (string.IsNullOrWhiteSpace(userName))
-        {
-            return "I need your name to create the travel plan. What's your name?";
-        }
+            return new PlanTripToolResult(false, null, null, null, null, null, null, null,
+                "Missing user name. Ask the user for their name.");
 
         if (string.IsNullOrWhiteSpace(preferences))
-        {
-            return "I need to know your travel preferences. What kind of trip are you looking for?";
-        }
+            return new PlanTripToolResult(false, null, userName, null, null, null, null, null,
+                "Missing travel preferences. Ask what kind of trip they want.");
 
         if (durationInDays < 1 || durationInDays > 30)
-        {
-            return "The trip duration should be between 1 and 30 days. How many days would you like to travel?";
-        }
+            return new PlanTripToolResult(false, null, userName, durationInDays, null, null, null, null,
+                "Duration must be between 1 and 30 days.");
 
         if (string.IsNullOrWhiteSpace(budget))
-        {
-            return "I need to know your budget to plan appropriately. What's your budget for this trip?";
-        }
+            return new PlanTripToolResult(false, null, userName, durationInDays, null, null, null, null,
+                "Missing budget. Ask the user for their budget.");
 
         if (string.IsNullOrWhiteSpace(travelDates))
-        {
-            return "When would you like to travel? Please provide your preferred travel dates.";
-        }
+            return new PlanTripToolResult(false, null, userName, durationInDays, budget, null, null, null,
+                "Missing travel dates. Ask when they want to travel.");
 
         try
         {
-            // Get the conversation ID from the current agent thread context
-            // This is set by the durable agent framework before invoking tool calls
             string? conversationId = DurableAgentContext.Current?.CurrentThread
                 .GetService<AgentThreadMetadata>()?.ConversationId;
 
-            _logger.LogInformation(
-                "PlanTrip tool called with conversation ID: {ConversationId}",
-                conversationId ?? "null");
+            // Check if an orchestration already exists for this conversation
+            if (!string.IsNullOrEmpty(conversationId))
+            {
+                var existingOrchestrationId = GetActiveOrchestration(conversationId);
+                if (!string.IsNullOrEmpty(existingOrchestrationId))
+                {
+                    _logger.LogInformation(
+                        "Returning existing orchestration {OrchestrationId} for conversation {ConversationId}",
+                        existingOrchestrationId, conversationId);
 
-            // Create the travel request
+                    // Return success with existing orchestration - no error, just use MonitorTripPlanning
+                    return new PlanTripToolResult(
+                        Success: true,
+                        OrchestrationId: existingOrchestrationId,
+                        UserName: userName,
+                        DurationInDays: durationInDays,
+                        Budget: budget,
+                        TravelDates: travelDates,
+                        Preferences: preferences,
+                        SpecialRequirements: string.IsNullOrWhiteSpace(specialRequirements) ? null : specialRequirements,
+                        ErrorMessage: null
+                    );
+                }
+            }
+
             var travelRequest = new TravelRequest(
                 UserName: userName,
                 Preferences: preferences,
@@ -148,226 +132,507 @@ public sealed class PlanTripTool
                 ConversationId: conversationId
             );
 
-            _logger.LogInformation(
-                "Starting travel planner orchestration for user {UserName} with conversation {ConversationId}", 
-                userName, conversationId);
-
-            // Schedule the orchestration using DurableAgentContext.Current
-            // This will start running after the tool call completes
-            string instanceId = DurableAgentContext.Current.ScheduleNewOrchestration(
+            string instanceId = DurableAgentContext.Current!.ScheduleNewOrchestration(
                 name: nameof(TravelPlannerOrchestrator.RunTravelPlannerOrchestration),
                 input: travelRequest);
 
-            // Mark that an orchestration was scheduled for this conversation
-            // The response handler will NOT send "done" so the client keeps listening
+            // Track this orchestration to prevent duplicates
             if (!string.IsNullOrEmpty(conversationId))
             {
-                MarkOrchestrationScheduled(conversationId);
-                _logger.LogInformation(
-                    "Marked orchestration scheduled for conversation {ConversationId}",
-                    conversationId);
+                TrackOrchestration(conversationId, instanceId);
             }
 
             _logger.LogInformation(
-                "Travel planner orchestration scheduled for user '{UserName}' with instance ID: {InstanceId}",
-                userName,
-                instanceId);
+                "Travel planner orchestration started: {InstanceId} for {UserName}",
+                instanceId, userName);
 
-            return $"🎉 **Great news!** I've started planning your trip!\n" +
-                $"\n" +
-                $"**Trip Details:**\n" +
-                $"- **Name:** {userName}\n" +
-                $"- **Duration:** {durationInDays} days\n" +
-                $"- **Budget:** {budget}\n" +
-                $"- **Dates:** {travelDates}\n" +
-                $"- **Preferences:** {preferences}\n" +
-                (string.IsNullOrWhiteSpace(specialRequirements) ? "" : $"- **Special Requirements:** {specialRequirements}\n") +
-                $"\n" +
-                $"**Orchestration ID:** `{instanceId}`\n" +
-                $"\n" +
-                $"I'm now:\n" +
-                $"1. 🔍 Finding the best destination matches for your preferences\n" +
-                $"2. 📅 Creating a day-by-day itinerary\n" +
-                $"3. 🍽️ Gathering local restaurant and attraction recommendations\n" +
-                $"4. 💰 Calculating costs in local and your budget currency\n" +
-                $"\n" +
-                $"This typically takes 1-2 minutes. I'll update you as each step completes!\n" +
-                $"\n" +
-                $"You can check the status at any time by asking about orchestration ID: `{instanceId}`";
+            return new PlanTripToolResult(
+                Success: true,
+                OrchestrationId: instanceId,
+                UserName: userName,
+                DurationInDays: durationInDays,
+                Budget: budget,
+                TravelDates: travelDates,
+                Preferences: preferences,
+                SpecialRequirements: string.IsNullOrWhiteSpace(specialRequirements) ? null : specialRequirements,
+                ErrorMessage: null
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to start travel planner orchestration");
-            return $"I encountered an error while starting the travel planning process: {ex.Message}. Please try again.";
+            return new PlanTripToolResult(false, null, userName, durationInDays, budget, travelDates, preferences, specialRequirements,
+                $"Failed to start planning: {ex.Message}");
         }
     }
 
+    // =========================================================================
+    // Tool: Monitor Trip Planning Progress
+    // =========================================================================
+
     /// <summary>
-    /// Checks the status of an ongoing trip planning orchestration.
+    /// Monitors trip planning and waits for the next status change.
     /// </summary>
-    [Description("Checks the status of an ongoing trip planning process. Use this when the user asks about the status of their travel plan.")]
-    public async Task<string> CheckTripPlanningStatus(
-        [Description("The orchestration instance ID returned when planning started")] string instanceId)
+    [Description(@"Monitors trip planning progress and waits for meaningful status changes.
+Call this immediately after PlanTrip to track progress. Keep calling it until IsWaitingForApproval 
+or IsCompleted is true. Each call waits up to 10 seconds for a status change before returning.
+Use the StatusMessage and StepChanged fields to communicate progress to the user.")]
+    public async Task<MonitoringUpdate> MonitorTripPlanning(
+        [Description("The orchestration ID to monitor")] string orchestrationId,
+        [Description("The last step you saw (pass null on first call)")] string? lastKnownStep = null)
     {
-        _logger.LogInformation("Checking status for workflow instance: {InstanceId}", instanceId);
+        _logger.LogInformation("Monitoring orchestration: {OrchestrationId}, lastStep: {LastStep}",
+            orchestrationId, lastKnownStep ?? "null");
+
+        const int maxWaitSeconds = 10;
+        const int pollIntervalMs = 500;
+        int iterations = maxWaitSeconds * 1000 / pollIntervalMs;
+
+        string? currentStep = lastKnownStep;
+        string? previousStep = lastKnownStep;
+        int? progress = null;
+        string? destination = null;
+        string? statusMessage = null;
+        bool stepChanged = false;
+        bool isWaitingForApproval = false;
+        bool isCompleted = false;
+        bool isFailed = false;
+        string runtimeStatus = "Unknown";
+        int nullCount = 0;
 
         try
         {
-            OrchestrationMetadata? status = await DurableAgentContext.Current.GetOrchestrationStatusAsync(
-                instanceId,
-                true);
+            for (int i = 0; i < iterations; i++)
+            {
+                var status = await DurableAgentContext.Current!.GetOrchestrationStatusAsync(orchestrationId, true);
+
+                if (status == null)
+                {
+                    nullCount++;
+                    _logger.LogDebug("Monitor iteration {Iteration}: status is null (count: {NullCount})", i, nullCount);
+
+                    // Orchestration may not exist yet - always wait the full time on first call
+                    if (lastKnownStep == null)
+                    {
+                        await Task.Delay(pollIntervalMs);
+                        continue;
+                    }
+
+                    // For subsequent calls, give it some time but not forever
+                    if (i < 5)
+                    {
+                        await Task.Delay(pollIntervalMs);
+                        continue;
+                    }
+                    return new MonitoringUpdate(
+                        orchestrationId, "NotFound", null, lastKnownStep, null, null,
+                        "Orchestration not found", false, false, false, true);
+                }
+
+                runtimeStatus = status.RuntimeStatus.ToString();
+                _logger.LogDebug("Monitor iteration {Iteration}: status = {Status}", i, runtimeStatus);
+
+                isCompleted = status.RuntimeStatus == OrchestrationRuntimeStatus.Completed;
+                isFailed = status.RuntimeStatus == OrchestrationRuntimeStatus.Failed;
+
+                // If orchestration is still pending, keep waiting
+                if (status.RuntimeStatus == OrchestrationRuntimeStatus.Pending)
+                {
+                    await Task.Delay(pollIntervalMs);
+                    continue;
+                }
+
+                if (isCompleted || isFailed)
+                {
+                    return new MonitoringUpdate(
+                        orchestrationId, runtimeStatus, currentStep, previousStep, 100, destination,
+                        isCompleted ? "Trip planning completed!" : "Trip planning failed",
+                        true, false, isCompleted, isFailed);
+                }
+
+                // Parse custom status
+                if (status.SerializedCustomStatus != null)
+                {
+                    try
+                    {
+                        var customStatus = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                            status.SerializedCustomStatus);
+
+                        if (customStatus != null)
+                        {
+                            if (customStatus.TryGetValue("step", out var stepEl))
+                                currentStep = stepEl.GetString();
+                            if (customStatus.TryGetValue("progress", out var progEl))
+                                progress = progEl.GetInt32();
+                            if (customStatus.TryGetValue("destination", out var destEl))
+                                destination = destEl.GetString();
+                            if (customStatus.TryGetValue("message", out var msgEl))
+                                statusMessage = msgEl.GetString();
+
+                            isWaitingForApproval = currentStep == "WaitingForApproval";
+                        }
+                    }
+                    catch { }
+                }
+
+                // Check if step changed
+                if (currentStep != lastKnownStep && currentStep != previousStep)
+                {
+                    stepChanged = true;
+                    previousStep = lastKnownStep;
+
+                    // Generate a friendly status message based on the step
+                    statusMessage = currentStep switch
+                    {
+                        "Starting" => "Starting trip planning...",
+                        "GetDestinationRecommendations" => "Finding the best destinations for your preferences...",
+                        "CreateItineraryAndRecommendations" => destination != null
+                            ? $"Creating itinerary for {destination} and finding local recommendations..."
+                            : "Creating your itinerary and finding local recommendations...",
+                        "SaveTravelPlan" => "Saving your travel plan...",
+                        "RequestApproval" => "Preparing your plan for review...",
+                        "WaitingForApproval" => "Your travel plan is ready! Please review and let me know if you'd like to approve it.",
+                        "BookingTrip" => "Booking your trip...",
+                        _ => statusMessage ?? $"Working on: {currentStep}"
+                    };
+
+                    return new MonitoringUpdate(
+                        orchestrationId, runtimeStatus, currentStep, previousStep, progress, destination,
+                        statusMessage, stepChanged, isWaitingForApproval, isCompleted, isFailed);
+                }
+
+                await Task.Delay(pollIntervalMs);
+            }
+
+            _logger.LogInformation("Monitor completed {Iterations} iterations. Status: {Status}, Step: {Step}, NullCount: {NullCount}",
+                iterations, runtimeStatus, currentStep ?? "null", nullCount);
+
+            // If we never got a status and this is initial monitoring, return "starting" not "error"
+            if (nullCount == iterations && lastKnownStep == null)
+            {
+                return new MonitoringUpdate(
+                    orchestrationId, "Pending", "Starting", null, 5, null,
+                    "Trip planning is initializing. Please continue monitoring.",
+                    true, false, false, false);
+            }
+
+            // No change detected within timeout - return current state
+            return new MonitoringUpdate(
+                orchestrationId, runtimeStatus, currentStep ?? "Starting", previousStep, progress ?? 5, destination,
+                statusMessage ?? "Trip planning is in progress. Please continue monitoring.",
+                currentStep != lastKnownStep, isWaitingForApproval, isCompleted, isFailed);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error monitoring orchestration {OrchestrationId}", orchestrationId);
+            return new MonitoringUpdate(
+                orchestrationId, "Error", currentStep, previousStep, progress, destination,
+                $"Error monitoring: {ex.Message}", false, false, false, true);
+        }
+    }
+
+    // =========================================================================
+    // Tool: Get Trip Plan Details
+    // =========================================================================
+
+    /// <summary>
+    /// Retrieves the full details of a trip plan.
+    /// </summary>
+    [Description(@"Gets the complete details of a trip plan including destination, itinerary, restaurants, and attractions.
+Use this when the user asks questions about their trip plan, wants to know specific details,
+or when you need to remind yourself what was planned. This is essential for answering
+questions like 'what restaurants did you recommend?' or 'what are we doing on day 2?'")]
+    public async Task<TripPlanDetails> GetTripPlanDetails(
+        [Description("The orchestration ID returned when planning started")] string orchestrationId)
+    {
+        _logger.LogInformation("Getting trip plan details for: {OrchestrationId}", orchestrationId);
+
+        try
+        {
+            var status = await DurableAgentContext.Current!.GetOrchestrationStatusAsync(orchestrationId, true);
 
             if (status == null)
             {
-                _logger.LogInformation("Workflow instance '{InstanceId}' not found.", instanceId);
-                return $"I couldn't find a travel plan with ID `{instanceId}`. Please check the ID and try again.";
+                return CreateEmptyDetails(orchestrationId, "NotFound");
             }
 
             var runtimeStatus = status.RuntimeStatus.ToString();
-            
-            string progressInfo = "";
+            bool isCompleted = status.RuntimeStatus == OrchestrationRuntimeStatus.Completed;
+
+            // Try to get plan from custom status (available during approval wait)
             if (status.SerializedCustomStatus != null)
             {
                 try
                 {
-                    var customStatus = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(status.SerializedCustomStatus);
-                    if (customStatus != null)
-                    {
-                        if (customStatus.TryGetValue("step", out var step))
-                            progressInfo += $"\n- **Current Step:** {step}";
-                        if (customStatus.TryGetValue("message", out var message))
-                            progressInfo += $"\n- **Status:** {message}";
-                        if (customStatus.TryGetValue("progress", out var progress))
-                            progressInfo += $"\n- **Progress:** {progress}%";
-                        if (customStatus.TryGetValue("destination", out var dest))
-                            progressInfo += $"\n- **Selected Destination:** {dest}";
-                    }
+                    var details = ParseTripPlanFromCustomStatus(
+                        orchestrationId, runtimeStatus, status.SerializedCustomStatus);
+                    if (details != null)
+                        return details;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse custom status");
+                }
             }
 
-            string statusEmoji = runtimeStatus switch
+            // Try to get plan from output (available after completion)
+            if (isCompleted && status.SerializedOutput != null)
             {
-                "Running" => "🔄",
-                "Completed" => "✅",
-                "Failed" => "❌",
-                "Pending" => "⏳",
-                _ => "📋"
-            };
-
-            string response = $"{statusEmoji} **Trip Planning Status**\n" +
-                $"\n" +
-                $"**Instance ID:** `{instanceId}`\n" +
-                $"**Status:** {runtimeStatus}\n" +
-                $"**Started:** {status.CreatedAt:g}\n" +
-                $"**Last Updated:** {status.LastUpdatedAt:g}\n" +
-                progressInfo;
-
-            if (progressInfo.Contains("WaitingForApproval"))
-            {
-                response += "\n\n🔔 **Action Required:** Your travel plan is ready for review!";
+                try
+                {
+                    var details = ParseTripPlanFromOutput(
+                        orchestrationId, runtimeStatus, status.SerializedOutput);
+                    if (details != null)
+                        return details;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to parse output");
+                }
             }
 
-            if (runtimeStatus == "Completed" && status.SerializedOutput != null)
-            {
-                response += "\n\n✨ **Your travel plan is complete!**";
-            }
-
-            return response;
+            return CreateEmptyDetails(orchestrationId, runtimeStatus);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check orchestration status for {InstanceId}", instanceId);
-            return $"I encountered an error checking the status: {ex.Message}";
+            _logger.LogError(ex, "Failed to get trip plan details for {OrchestrationId}", orchestrationId);
+            return CreateEmptyDetails(orchestrationId, "Error");
         }
     }
 
+    private TripPlanDetails? ParseTripPlanFromCustomStatus(
+        string orchestrationId, string status, string serializedCustomStatus)
+    {
+        using var doc = JsonDocument.Parse(serializedCustomStatus);
+        var root = doc.RootElement;
+
+        if (!root.TryGetProperty("travelPlan", out var planEl))
+            return null;
+
+        var step = root.TryGetProperty("step", out var stepEl) ? stepEl.GetString() : null;
+        var isWaitingForApproval = step == "WaitingForApproval";
+        var documentUrl = root.TryGetProperty("documentUrl", out var docEl) ? docEl.GetString() : null;
+
+        // Extract destination
+        string? destName = null, destDesc = null;
+        int? matchScore = null;
+        if (planEl.TryGetProperty("destination", out var destEl))
+        {
+            destName = destEl.GetString();
+        }
+
+        // Extract itinerary info
+        string? travelDates = null, totalCost = null;
+        int? numDays = null;
+        List<DayPlanSummary>? dailySummary = null;
+
+        if (planEl.TryGetProperty("dates", out var datesEl))
+            travelDates = datesEl.GetString();
+        if (planEl.TryGetProperty("cost", out var costEl))
+            totalCost = costEl.GetString();
+        if (planEl.TryGetProperty("days", out var daysEl))
+            numDays = daysEl.GetInt32();
+
+        // Parse daily plan
+        if (planEl.TryGetProperty("dailyPlan", out var dailyPlanEl) && dailyPlanEl.ValueKind == JsonValueKind.Array)
+        {
+            dailySummary = new List<DayPlanSummary>();
+            foreach (var dayEl in dailyPlanEl.EnumerateArray())
+            {
+                var day = dayEl.TryGetProperty("Day", out var dayNumEl) ? dayNumEl.GetInt32() : 0;
+                var date = dayEl.TryGetProperty("Date", out var dateEl) ? dateEl.GetString() ?? "" : "";
+                var activities = new List<string>();
+
+                if (dayEl.TryGetProperty("Activities", out var activitiesEl) &&
+                    activitiesEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var actEl in activitiesEl.EnumerateArray())
+                    {
+                        var time = actEl.TryGetProperty("Time", out var timeEl) ? timeEl.GetString() : "";
+                        var name = actEl.TryGetProperty("ActivityName", out var nameEl) ? nameEl.GetString() : "";
+                        var cost = actEl.TryGetProperty("EstimatedCost", out var costEl2) ? costEl2.GetString() : "";
+                        activities.Add($"{time}: {name} ({cost})");
+                    }
+                }
+                dailySummary.Add(new DayPlanSummary(day, date, activities));
+            }
+        }
+
+        // Extract recommendations
+        List<string>? attractions = null, restaurants = null;
+        string? tips = null, additionalNotes = null;
+
+        if (planEl.TryGetProperty("attractions", out var attrEl) && attrEl.ValueKind == JsonValueKind.Object)
+        {
+            var name = attrEl.TryGetProperty("Name", out var n) ? n.GetString() : null;
+            if (name != null) attractions = new List<string> { name };
+        }
+        if (planEl.TryGetProperty("restaurants", out var restEl) && restEl.ValueKind == JsonValueKind.Object)
+        {
+            var name = restEl.TryGetProperty("Name", out var n) ? n.GetString() : null;
+            if (name != null) restaurants = new List<string> { name };
+        }
+        if (planEl.TryGetProperty("insiderTips", out var tipsEl))
+            tips = tipsEl.GetString();
+        if (planEl.TryGetProperty("additionalNotes", out var notesEl))
+            additionalNotes = notesEl.GetString();
+
+        return new TripPlanDetails(
+            OrchestrationId: orchestrationId,
+            Status: status,
+            IsWaitingForApproval: isWaitingForApproval,
+            IsCompleted: false,
+            DestinationName: destName,
+            DestinationDescription: destDesc,
+            DestinationMatchScore: matchScore,
+            TravelDates: travelDates,
+            NumberOfDays: numDays,
+            EstimatedTotalCost: totalCost,
+            AdditionalNotes: additionalNotes,
+            DailyPlanSummary: dailySummary,
+            TopAttractions: attractions,
+            TopRestaurants: restaurants,
+            InsiderTips: tips,
+            DocumentUrl: documentUrl,
+            BookingConfirmation: null
+        );
+    }
+
+    private TripPlanDetails? ParseTripPlanFromOutput(
+        string orchestrationId, string status, string serializedOutput)
+    {
+        var result = JsonSerializer.Deserialize<TravelPlanResult>(serializedOutput);
+        if (result?.Plan == null)
+            return null;
+
+        var plan = result.Plan;
+        var topDest = plan.DestinationRecommendations.Recommendations
+            .OrderByDescending(r => r.MatchScore)
+            .FirstOrDefault();
+
+        // Build daily summary
+        var dailySummary = plan.Itinerary.DailyPlan.Select(day => new DayPlanSummary(
+            day.Day,
+            day.Date,
+            day.Activities.Select(a => $"{a.Time}: {a.ActivityName} ({a.EstimatedCost})").ToList()
+        )).ToList();
+
+        return new TripPlanDetails(
+            OrchestrationId: orchestrationId,
+            Status: status,
+            IsWaitingForApproval: false,
+            IsCompleted: true,
+            DestinationName: topDest?.DestinationName,
+            DestinationDescription: topDest?.Description,
+            DestinationMatchScore: topDest != null ? (int)topDest.MatchScore : null,
+            TravelDates: plan.Itinerary.TravelDates,
+            NumberOfDays: plan.Itinerary.DailyPlan.Count,
+            EstimatedTotalCost: plan.Itinerary.EstimatedTotalCost,
+            AdditionalNotes: plan.Itinerary.AdditionalNotes,
+            DailyPlanSummary: dailySummary,
+            TopAttractions: plan.LocalRecommendations.Attractions.Take(5).Select(a => $"{a.Name} ({a.Category})").ToList(),
+            TopRestaurants: plan.LocalRecommendations.Restaurants.Take(5).Select(r => $"{r.Name} - {r.Cuisine}").ToList(),
+            InsiderTips: plan.LocalRecommendations.InsiderTips,
+            DocumentUrl: result.DocumentUrl,
+            BookingConfirmation: result.BookingConfirmation
+        );
+    }
+
+    private static TripPlanDetails CreateEmptyDetails(string orchestrationId, string status)
+    {
+        return new TripPlanDetails(
+            orchestrationId, status, false, false,
+            null, null, null, null, null, null, null, null, null, null, null, null, null
+        );
+    }
+
+    // =========================================================================
+    // Tool: Approve or Reject Plan
+    // =========================================================================
+
     /// <summary>
-    /// Approves or rejects a travel plan that is awaiting user confirmation.
+    /// Approves or rejects a travel plan.
     /// </summary>
-    [Description("Approves or rejects a travel plan that is waiting for user approval. Call when the user wants to approve or reject their travel plan.")]
-    public async Task<string> RespondToTravelPlan(
-        [Description("The orchestration instance ID")] string instanceId,
-        [Description("Whether to approve (true) or reject (false) the travel plan")] bool approved,
-        [Description("Optional comments about the decision")] string comments = "")
+    [Description(@"Approves or rejects a travel plan that is waiting for user approval.
+Call this when the user explicitly says they want to approve/book the trip or reject/decline it.
+Returns the booking confirmation if approved successfully.")]
+    public async Task<ApprovalToolResult> RespondToTravelPlan(
+        [Description("The orchestration ID")] string orchestrationId,
+        [Description("True to approve and book, false to reject")] bool approved,
+        [Description("Optional user comments")] string comments = "")
     {
         _logger.LogInformation(
-            "Processing approval response for workflow instance: {InstanceId}, Approved: {Approved}", 
-            instanceId, approved);
+            "Processing approval for {OrchestrationId}: Approved={Approved}",
+            orchestrationId, approved);
 
         try
         {
             var approvalResponse = new ApprovalResponse(approved, comments);
-            
-            await DurableAgentContext.Current.RaiseOrchestrationEventAsync(
-                instanceId, 
-                "ApprovalEvent", 
+
+            await DurableAgentContext.Current!.RaiseOrchestrationEventAsync(
+                orchestrationId,
+                "ApprovalEvent",
                 approvalResponse);
 
-            if (approved)
+            if (!approved)
             {
-                _logger.LogInformation("Approval submitted for {InstanceId}", instanceId);
-                
-                for (int i = 0; i < 30; i++)
+                return new ApprovalToolResult(
+                    Success: true,
+                    WasApproved: false,
+                    BookingId: null,
+                    BookingConfirmation: null,
+                    ErrorMessage: null
+                );
+            }
+
+            // Wait for booking to complete
+            for (int i = 0; i < 30; i++)
+            {
+                await Task.Delay(1000);
+                var status = await DurableAgentContext.Current.GetOrchestrationStatusAsync(orchestrationId, true);
+
+                if (status?.RuntimeStatus == OrchestrationRuntimeStatus.Completed)
                 {
-                    await Task.Delay(1000);
-                    var status = await DurableAgentContext.Current.GetOrchestrationStatusAsync(
-                        instanceId, 
-                        true);
-                    
-                    if (status?.RuntimeStatus == OrchestrationRuntimeStatus.Completed)
+                    if (status.SerializedOutput != null)
                     {
-                        if (status.SerializedOutput != null)
+                        try
                         {
-                            try
-                            {
-                                var result = JsonSerializer.Deserialize<TravelPlanResult>(status.SerializedOutput);
-                                if (result != null && !string.IsNullOrEmpty(result.BookingConfirmation))
-                                {
-                                    return $"✅ **Travel Plan Approved & Booked!**\n" +
-                                        $"\n" +
-                                        $"🎫 **{result.BookingConfirmation}**\n" +
-                                        $"\n" +
-                                        (string.IsNullOrWhiteSpace(comments) ? "" : $"**Your notes:** {comments}\n") +
-                                        $"\n" +
-                                        $"Enjoy your trip! 🌴✈️";
-                                }
-                            }
-                            catch { }
+                            var result = JsonSerializer.Deserialize<TravelPlanResult>(status.SerializedOutput);
+                            return new ApprovalToolResult(
+                                Success: true,
+                                WasApproved: true,
+                                BookingId: ExtractBookingId(result?.BookingConfirmation),
+                                BookingConfirmation: result?.BookingConfirmation,
+                                ErrorMessage: null
+                            );
                         }
-                        
-                        return $"✅ **Travel Plan Approved & Booked!**\n" +
-                            $"\n" +
-                            $"Your trip has been successfully booked!\n" +
-                            (string.IsNullOrWhiteSpace(comments) ? "" : $"**Your notes:** {comments}\n") +
-                            $"\n" +
-                            $"Enjoy your trip! 🌴✈️";
+                        catch { }
                     }
-                    else if (status?.RuntimeStatus == OrchestrationRuntimeStatus.Failed)
-                    {
-                        return "✅ **Travel Plan Approved** but there was an issue completing the booking.";
-                    }
+
+                    return new ApprovalToolResult(true, true, null, "Booking completed", null);
                 }
-                
-                return $"✅ **Travel Plan Approved!**\n" +
-                    $"\n" +
-                    $"Your approval was submitted and the booking is being processed.\n" +
-                    $"Check status with ID: `{instanceId}`";
+                else if (status?.RuntimeStatus == OrchestrationRuntimeStatus.Failed)
+                {
+                    return new ApprovalToolResult(false, true, null, null, "Booking failed");
+                }
             }
-            else
-            {
-                return $"❌ **Travel Plan Not Approved**\n" +
-                    $"\n" +
-                    $"I've recorded your decision.\n" +
-                    (string.IsNullOrWhiteSpace(comments) ? "" : $"**Your feedback:** {comments}\n") +
-                    $"\n" +
-                    $"Would you like me to help you plan a different trip?";
-            }
+
+            return new ApprovalToolResult(true, true, null, "Booking in progress", null);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send approval response for {InstanceId}", instanceId);
-            return $"I encountered an error processing your response: {ex.Message}. Please try again.";
+            _logger.LogError(ex, "Failed to process approval for {OrchestrationId}", orchestrationId);
+            return new ApprovalToolResult(false, approved, null, null, ex.Message);
         }
+    }
+
+    private static string? ExtractBookingId(string? confirmation)
+    {
+        if (string.IsNullOrEmpty(confirmation)) return null;
+
+        // Try to extract booking ID from confirmation text
+        var match = System.Text.RegularExpressions.Regex.Match(
+            confirmation, @"TRVL-[A-Z0-9]+");
+        return match.Success ? match.Value : null;
     }
 }

@@ -1,13 +1,13 @@
-// =============================================================================
-// ConversationalAgentApi.cs - HTTP Endpoints for Conversational Agent
-// =============================================================================
-// These API endpoints provide the primary interface for the chat-based travel
-// planning experience. They handle:
-// - Creating new conversations with the AI agent
-// - Sending follow-up messages in existing conversations
-// - Resumable streaming via Redis Streams for reliable message delivery
-// - Orchestration status and approval handling
-// =============================================================================
+// ============================================================================
+// ConversationalAgentApi.cs - Chat API with Reliable Streaming
+// ============================================================================
+// Endpoints:
+// - POST /api/agent/create        Start a new conversation
+// - POST /api/agent/chat/{id}     Continue existing conversation  
+// - GET  /api/agent/stream/{id}   Resume stream from cursor
+// - GET  /api/agent/orchestration/{id}        Get orchestration status
+// - POST /api/agent/orchestration/{id}/approve Approve/reject plan
+// ============================================================================
 
 // Copyright (c) Microsoft. All rights reserved.
 
@@ -28,39 +28,12 @@ namespace TravelPlannerFunctions.Functions;
 
 /// <summary>
 /// HTTP trigger functions for the conversational travel planner agent.
-/// Implements reliable streaming using Server-Sent Events (SSE) backed by Redis Streams.
 /// </summary>
-/// <remarks>
-/// <para>
-/// This API supports two response formats:
-/// <list type="bullet">
-/// <item><term>SSE (default)</term><description>text/event-stream for real-time UI updates</description></item>
-/// <item><term>Plain text</term><description>text/plain for simpler clients</description></item>
-/// </list>
-/// </para>
-/// <para>
-/// Endpoints:
-/// <list type="bullet">
-/// <item><term>POST /api/agent/create</term><description>Start a new conversation</description></item>
-/// <item><term>POST /api/agent/chat/{id}</term><description>Continue existing conversation</description></item>
-/// <item><term>GET /api/agent/stream/{id}</term><description>Resume stream from cursor</description></item>
-/// <item><term>GET /api/agent/orchestration/{id}</term><description>Get orchestration status</description></item>
-/// <item><term>POST /api/agent/orchestration/{id}/approve</term><description>Approve/reject plan</description></item>
-/// </list>
-/// </para>
-/// </remarks>
 public sealed class ConversationalAgentApi
 {
-    // =========================================================================
-    // Dependencies
-    // =========================================================================
-    
     private readonly RedisStreamResponseHandler _streamHandler;
     private readonly ILogger<ConversationalAgentApi> _logger;
 
-    /// <summary>
-    /// Initializes the API with required dependencies.
-    /// </summary>
     public ConversationalAgentApi(
         RedisStreamResponseHandler streamHandler,
         ILogger<ConversationalAgentApi> logger)
@@ -70,17 +43,12 @@ public sealed class ConversationalAgentApi
     }
 
     // =========================================================================
-    // Conversation Management Endpoints
+    // Conversation Endpoints
     // =========================================================================
 
     /// <summary>
-    /// Creates a new conversation with the travel planner agent and streams the response.
+    /// Creates a new conversation with the travel planner agent.
     /// </summary>
-    /// <param name="request">The HTTP request containing the initial message in the body.</param>
-    /// <param name="durableClient">The Durable Task client for signaling agents.</param>
-    /// <param name="context">The function invocation context.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A streaming response with the agent's reply.</returns>
     [Function("CreateConversation")]
     public async Task<IActionResult> CreateConversationAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "agent/create")] HttpRequest request,
@@ -141,36 +109,25 @@ public sealed class ConversationalAgentApi
             return new BadRequestObjectResult("Conversation ID is required.");
         }
 
-        // Read the message from the request body
         string message = await new StreamReader(request.Body).ReadToEndAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(message))
         {
             return new BadRequestObjectResult("Request body must contain a message.");
         }
 
-        _logger.LogInformation("Continuing conversation {ConversationId} with new message: {Message}", conversationId, message);
+        _logger.LogInformation("Continuing conversation {ConversationId}", conversationId);
 
-        // Clear the stream before the new response so client only sees new content
+        // Clear the stream before the new response
         await _streamHandler.ClearStreamAsync(conversationId);
 
         AIAgent agentProxy = durableClient.AsDurableAgentProxy(context, "ConversationalTravelAgent");
 
-        // Reconstruct the existing thread from the conversation ID.
-        // The conversation ID is the string representation of the AgentSessionId (e.g., "@dafx-agentname@guid").
-        // DeserializeThread expects JSON with a sessionId property.
+        // Reconstruct the existing thread from the conversation ID
         string threadJson = $"{{\"sessionId\":\"{conversationId}\"}}";
-        _logger.LogInformation("Deserializing thread with JSON: {ThreadJson}", threadJson);
         using JsonDocument doc = JsonDocument.Parse(threadJson);
         AgentThread thread = agentProxy.DeserializeThread(doc.RootElement);
-        
-        // Get metadata to verify the thread is properly reconstructed
-        var threadMetadata = thread.GetService<AgentThreadMetadata>();
-        _logger.LogInformation(
-            "Thread deserialized - Type: {ThreadType}, MetadataConversationId: {MetadataConversationId}", 
-            thread.GetType().Name,
-            threadMetadata?.ConversationId ?? "null");
 
-        // Run the agent - tools use DurableAgentContext.Current to schedule orchestrations
+        // Run the agent
         DurableAgentRunOptions options = new() { IsFireAndForget = true };
         await agentProxy.RunAsync(message, thread, options, cancellationToken);
 
@@ -190,11 +147,11 @@ public sealed class ConversationalAgentApi
     }
 
     // =========================================================================
-    // Stream Resumption Endpoint
+    // Stream Resumption
     // =========================================================================
 
     /// <summary>
-    /// Resumes streaming from a specific cursor position for an existing conversation.
+    /// Resumes streaming from a specific cursor position.
     /// </summary>
     [Function("StreamConversation")]
     public async Task<IActionResult> StreamConversationAsync(
@@ -210,10 +167,7 @@ public sealed class ConversationalAgentApi
         // Get the cursor from query string (optional)
         string? cursor = request.Query["cursor"].FirstOrDefault();
 
-        _logger.LogInformation(
-            "Resuming stream for conversation {ConversationId} from cursor: {Cursor}",
-            conversationId,
-            cursor ?? "(beginning)");
+        _logger.LogInformation("Resuming stream for conversation {ConversationId}", conversationId);
 
         // Check Accept header to determine response format
         string? acceptHeader = request.Headers.Accept.FirstOrDefault();
@@ -223,11 +177,11 @@ public sealed class ConversationalAgentApi
     }
 
     // =========================================================================
-    // Orchestration Status & Approval Endpoints
+    // Orchestration Status & Approval
     // =========================================================================
 
     /// <summary>
-    /// Gets the status of an orchestration if one was started by the agent.
+    /// Gets the status of an orchestration.
     /// </summary>
     [Function("GetOrchestrationStatus")]
     public async Task<IActionResult> GetOrchestrationStatusAsync(
@@ -277,7 +231,7 @@ public sealed class ConversationalAgentApi
     }
 
     // =========================================================================
-    // Private Helper Methods - Streaming Implementation
+    // Streaming Helpers
     // =========================================================================
 
     /// <summary>
@@ -297,7 +251,7 @@ public sealed class ConversationalAgentApi
         httpContext.Response.Headers.CacheControl = "no-cache";
         httpContext.Response.Headers.Connection = "keep-alive";
         httpContext.Response.Headers["x-conversation-id"] = conversationId;
-        
+
         // Expose custom header for CORS (Azure Functions built-in CORS doesn't support this)
         httpContext.Response.Headers["Access-Control-Expose-Headers"] = "x-conversation-id";
 
@@ -419,14 +373,14 @@ public sealed class ConversationalAgentApi
         }
 
         sb.AppendLine($"event: {eventType}");
-        
+
         // SSE data field must handle multi-line content:
         // Each line must be prefixed with "data: "
         foreach (var line in data.Split('\n'))
         {
             sb.AppendLine($"data: {line}");
         }
-        
+
         sb.AppendLine(); // Empty line marks end of event
 
         await response.WriteAsync(sb.ToString());
