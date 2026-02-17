@@ -225,7 +225,7 @@ def travel_planner_orchestration(context: df.DurableOrchestrationContext):
         
         # Step 1: Get destination recommendations
         destination_agent = app.get_agent(context, "DestinationRecommenderAgent")
-        destination_thread = destination_agent.get_new_thread()
+        destination_session = destination_agent.create_session()
         
         destination_prompt = f"""Based on the following preferences, recommend 3 travel destinations:
 User: {travel_request.user_name}
@@ -239,11 +239,13 @@ Provide detailed explanations for each recommendation highlighting why it matche
 
         destinations_result = yield destination_agent.run(
             messages=destination_prompt,
-            thread=destination_thread,
+            session=destination_session,
             options={"response_format": DestinationRecommendations}
         )
         
-        destinations = destinations_result.try_parse_value(DestinationRecommendations)
+        destinations = destinations_result.value
+        if not isinstance(destinations, DestinationRecommendations):
+            destinations = None
         
         if not destinations or not destinations.recommendations:
             return {"error": "No destinations found", "raw_response": destinations_result.text}
@@ -259,7 +261,7 @@ Provide detailed explanations for each recommendation highlighting why it matche
         
         # Step 2: Create itinerary for top destination
         itinerary_agent = app.get_agent(context, "ItineraryPlannerAgent")
-        itinerary_thread = itinerary_agent.get_new_thread()
+        itinerary_session = itinerary_agent.create_session()
         
         itinerary_prompt = f"""Create a detailed daily itinerary for a trip to {top_destination.destination_name}:
 Duration: {travel_request.duration_in_days} days
@@ -271,11 +273,13 @@ Include a mix of sightseeing, cultural activities, and relaxation time with real
 
         itinerary_result = yield itinerary_agent.run(
             messages=itinerary_prompt,
-            thread=itinerary_thread,
+            session=itinerary_session,
             options={"response_format": Itinerary}
         )
         
-        itinerary = itinerary_result.try_parse_value(Itinerary)
+        itinerary = itinerary_result.value
+        if not isinstance(itinerary, Itinerary):
+            itinerary = None
         
         # Update status
         context.set_custom_status({
@@ -285,7 +289,7 @@ Include a mix of sightseeing, cultural activities, and relaxation time with real
         
         # Step 3: Get local recommendations
         local_agent = app.get_agent(context, "LocalRecommendationsAgent")
-        local_thread = local_agent.get_new_thread()
+        local_session = local_agent.create_session()
         
         local_prompt = f"""Provide local recommendations for {top_destination.destination_name}:
 Duration of Stay: {travel_request.duration_in_days} days
@@ -295,11 +299,13 @@ Provide authentic local attractions, restaurants, and insider tips."""
 
         local_result = yield local_agent.run(
             messages=local_prompt,
-            thread=local_thread,
+            session=local_session,
             options={"response_format": LocalRecommendations}
         )
         
-        local_recs = local_result.try_parse_value(LocalRecommendations)
+        local_recs = local_result.value
+        if not isinstance(local_recs, LocalRecommendations):
+            local_recs = None
         
         logging.info(f"Local recommendations received: {local_recs is not None}")
         

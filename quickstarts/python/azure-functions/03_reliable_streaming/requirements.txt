@@ -1,4 +1,4 @@
 agent-framework-azurefunctions
-agent-framework-durabletask>=0.0.2b260126
+agent-framework-durabletask>=1.0.0b260212
 azure-identity
 redis

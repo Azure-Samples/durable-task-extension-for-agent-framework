@@ -104,17 +104,19 @@ def content_generation_hitl_orchestration(context: DurableOrchestrationContext):
         raise ValueError(f"Invalid content generation input: {exc}") from exc
 
     writer = app.get_agent(context, WRITER_AGENT_NAME)
-    writer_thread = writer.get_new_thread()
+    writer_session = writer.create_session()
 
     context.set_custom_status(f"Starting content generation for topic: {payload.topic}")
 
     initial_raw = yield writer.run(
         messages=f"Write a short article about '{payload.topic}'.",
-        thread=writer_thread,
+        session=writer_session,
         options={"response_format": GeneratedContent},
     )
 
-    content = initial_raw.try_parse_value(GeneratedContent)
+    content = initial_raw.value
+    if not isinstance(content, GeneratedContent):
+        content = None
     logger.info("Type of content after extraction: %s", type(content))
 
     if content is None:
@@ -155,11 +157,13 @@ def content_generation_hitl_orchestration(context: DurableOrchestrationContext):
             )
             rewritten_raw = yield writer.run(
                 messages=rewrite_prompt,
-                thread=writer_thread,
+                session=writer_session,
                 options={"response_format": GeneratedContent},
             )
 
-            content = rewritten_raw.try_parse_value(GeneratedContent)
+            content = rewritten_raw.value
+            if not isinstance(content, GeneratedContent):
+                content = None
             if content is None:
                 raise ValueError("Agent returned no content after rewrite.")
         else:

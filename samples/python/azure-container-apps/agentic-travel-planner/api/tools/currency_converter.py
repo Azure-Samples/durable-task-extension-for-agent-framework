@@ -4,7 +4,7 @@ Currency conversion tools for the Travel Planner agents.
 import json
 from typing import Dict, Optional
 from datetime import datetime, timedelta
-
+from agent_framework import tool
 # Cache for exchange rates to avoid repeated API calls
 _exchange_rate_cache: Dict[str, dict] = {}
 _cache_expiry: Optional[datetime] = None
@@ -35,6 +35,7 @@ _FALLBACK_RATES = {
 }
 
 
+@tool
 async def get_exchange_rate(from_currency: str, to_currency: str) -> float:
     """
     Get the exchange rate between two currencies.
@@ -64,6 +65,7 @@ async def get_exchange_rate(from_currency: str, to_currency: str) -> float:
     return 1.0
 
 
+@tool
 async def convert_currency(
     amount: float,
     from_currency: str,
