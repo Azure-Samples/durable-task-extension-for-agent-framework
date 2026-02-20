@@ -1,0 +1,126 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "quickstarts", "quickstarts", "{1401E3A5-A052-2FAB-694F-B4B02582B646}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet", "dotnet", "{BF3B5AC9-2EDD-215A-9E8A-C7FB29E4E03B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azure-functions", "azure-functions", "{D94ED720-228B-AC2C-6649-C20D59C3DAD6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "01_single_agent", "01_single_agent", "{5703F5D7-9940-9854-AC11-01DE271ADDB1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "01_SingleAgent", "quickstarts\dotnet\azure-functions\01_single_agent\01_SingleAgent.csproj", "{4B516860-6FA8-8A3C-963D-627C8E25F9B8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "02_orchestration_chaining", "02_orchestration_chaining", "{C5FAE40A-4D3F-5FFF-F97E-05352F93B0A0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "02_AgentOrchestration_Chaining", "quickstarts\dotnet\azure-functions\02_orchestration_chaining\02_AgentOrchestration_Chaining.csproj", "{FE67C62C-23AF-A1FE-03E2-B317322AE714}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "03_orchestration_concurrency", "03_orchestration_concurrency", "{2014C077-C7DF-5AA9-2A24-985CF59DB598}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "03_AgentOrchestration_Concurrency", "quickstarts\dotnet\azure-functions\03_orchestration_concurrency\03_AgentOrchestration_Concurrency.csproj", "{F2A8A9FF-3290-D878-2D7E-AA57CC788E48}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "04_orchestration_conditionals", "04_orchestration_conditionals", "{09DEA2A2-EFD5-4F52-E5AD-5C164920809A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "04_AgentOrchestration_Conditionals", "quickstarts\dotnet\azure-functions\04_orchestration_conditionals\04_AgentOrchestration_Conditionals.csproj", "{8E8B9F25-BB8C-D481-D7A0-8EDB59B269CF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "05_orchestration_hitl", "05_orchestration_hitl", "{72B15094-FF22-23DC-E7C3-4445892D679C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "05_AgentOrchestration_HITL", "quickstarts\dotnet\azure-functions\05_orchestration_hitl\05_AgentOrchestration_HITL.csproj", "{DAE6AD5E-C8E8-6183-E75E-50B1C38ADB5F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "06_long_running_tools", "06_long_running_tools", "{60A0AC3A-4FB2-92A9-B302-4C5C14D3B3CA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "06_LongRunningTools", "quickstarts\dotnet\azure-functions\06_long_running_tools\06_LongRunningTools.csproj", "{2C8FCBE3-0396-A965-DB8E-17FB87BBA1BA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "07_mcp_server", "07_mcp_server", "{D44826C6-9A03-2209-3740-9B411B892339}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "07_AgentAsMcpTool", "quickstarts\dotnet\azure-functions\07_mcp_server\07_AgentAsMcpTool.csproj", "{9235D5BD-C2B3-1461-2852-995A7B123391}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "08_reliable_streaming", "08_reliable_streaming", "{7044D1A5-1620-5C80-342C-B316A76887B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "08_ReliableStreaming", "quickstarts\dotnet\azure-functions\08_reliable_streaming\08_ReliableStreaming.csproj", "{D9F7EF0A-8E9E-CE81-CD35-38C4D5BEECB8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dotnet", "dotnet", "{5A728863-19AC-85BD-2451-DA9A2B6A9E80}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azure-functions", "azure-functions", "{CE5D43F8-B5D5-169C-7D7A-9A96973C7632}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "agentic-travel-planner-with-reliable-streaming", "agentic-travel-planner-with-reliable-streaming", "{E2539733-77A0-2F48-EB6C-AC48320A8F7F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TravelPlannerFunctions", "samples\dotnet\azure-functions\agentic-travel-planner-with-reliable-streaming\TravelPlannerFunctions.csproj", "{D691CF2D-8D03-A9E5-4A33-0A6474E66D39}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4B516860-6FA8-8A3C-963D-627C8E25F9B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B516860-6FA8-8A3C-963D-627C8E25F9B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B516860-6FA8-8A3C-963D-627C8E25F9B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B516860-6FA8-8A3C-963D-627C8E25F9B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE67C62C-23AF-A1FE-03E2-B317322AE714}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE67C62C-23AF-A1FE-03E2-B317322AE714}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE67C62C-23AF-A1FE-03E2-B317322AE714}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE67C62C-23AF-A1FE-03E2-B317322AE714}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F2A8A9FF-3290-D878-2D7E-AA57CC788E48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F2A8A9FF-3290-D878-2D7E-AA57CC788E48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F2A8A9FF-3290-D878-2D7E-AA57CC788E48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F2A8A9FF-3290-D878-2D7E-AA57CC788E48}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8E8B9F25-BB8C-D481-D7A0-8EDB59B269CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8E8B9F25-BB8C-D481-D7A0-8EDB59B269CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8E8B9F25-BB8C-D481-D7A0-8EDB59B269CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8E8B9F25-BB8C-D481-D7A0-8EDB59B269CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DAE6AD5E-C8E8-6183-E75E-50B1C38ADB5F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DAE6AD5E-C8E8-6183-E75E-50B1C38ADB5F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DAE6AD5E-C8E8-6183-E75E-50B1C38ADB5F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DAE6AD5E-C8E8-6183-E75E-50B1C38ADB5F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C8FCBE3-0396-A965-DB8E-17FB87BBA1BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C8FCBE3-0396-A965-DB8E-17FB87BBA1BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C8FCBE3-0396-A965-DB8E-17FB87BBA1BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C8FCBE3-0396-A965-DB8E-17FB87BBA1BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9235D5BD-C2B3-1461-2852-995A7B123391}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9235D5BD-C2B3-1461-2852-995A7B123391}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9235D5BD-C2B3-1461-2852-995A7B123391}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9235D5BD-C2B3-1461-2852-995A7B123391}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9F7EF0A-8E9E-CE81-CD35-38C4D5BEECB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9F7EF0A-8E9E-CE81-CD35-38C4D5BEECB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9F7EF0A-8E9E-CE81-CD35-38C4D5BEECB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9F7EF0A-8E9E-CE81-CD35-38C4D5BEECB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D691CF2D-8D03-A9E5-4A33-0A6474E66D39}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D691CF2D-8D03-A9E5-4A33-0A6474E66D39}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D691CF2D-8D03-A9E5-4A33-0A6474E66D39}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D691CF2D-8D03-A9E5-4A33-0A6474E66D39}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{BF3B5AC9-2EDD-215A-9E8A-C7FB29E4E03B} = {1401E3A5-A052-2FAB-694F-B4B02582B646}
+		{D94ED720-228B-AC2C-6649-C20D59C3DAD6} = {BF3B5AC9-2EDD-215A-9E8A-C7FB29E4E03B}
+		{5703F5D7-9940-9854-AC11-01DE271ADDB1} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{4B516860-6FA8-8A3C-963D-627C8E25F9B8} = {5703F5D7-9940-9854-AC11-01DE271ADDB1}
+		{C5FAE40A-4D3F-5FFF-F97E-05352F93B0A0} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{FE67C62C-23AF-A1FE-03E2-B317322AE714} = {C5FAE40A-4D3F-5FFF-F97E-05352F93B0A0}
+		{2014C077-C7DF-5AA9-2A24-985CF59DB598} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{F2A8A9FF-3290-D878-2D7E-AA57CC788E48} = {2014C077-C7DF-5AA9-2A24-985CF59DB598}
+		{09DEA2A2-EFD5-4F52-E5AD-5C164920809A} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{8E8B9F25-BB8C-D481-D7A0-8EDB59B269CF} = {09DEA2A2-EFD5-4F52-E5AD-5C164920809A}
+		{72B15094-FF22-23DC-E7C3-4445892D679C} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{DAE6AD5E-C8E8-6183-E75E-50B1C38ADB5F} = {72B15094-FF22-23DC-E7C3-4445892D679C}
+		{60A0AC3A-4FB2-92A9-B302-4C5C14D3B3CA} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{2C8FCBE3-0396-A965-DB8E-17FB87BBA1BA} = {60A0AC3A-4FB2-92A9-B302-4C5C14D3B3CA}
+		{D44826C6-9A03-2209-3740-9B411B892339} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{9235D5BD-C2B3-1461-2852-995A7B123391} = {D44826C6-9A03-2209-3740-9B411B892339}
+		{7044D1A5-1620-5C80-342C-B316A76887B2} = {D94ED720-228B-AC2C-6649-C20D59C3DAD6}
+		{D9F7EF0A-8E9E-CE81-CD35-38C4D5BEECB8} = {7044D1A5-1620-5C80-342C-B316A76887B2}
+		{5A728863-19AC-85BD-2451-DA9A2B6A9E80} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{CE5D43F8-B5D5-169C-7D7A-9A96973C7632} = {5A728863-19AC-85BD-2451-DA9A2B6A9E80}
+		{E2539733-77A0-2F48-EB6C-AC48320A8F7F} = {CE5D43F8-B5D5-169C-7D7A-9A96973C7632}
+		{D691CF2D-8D03-A9E5-4A33-0A6474E66D39} = {E2539733-77A0-2F48-EB6C-AC48320A8F7F}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {FE9DAD76-3E12-4D63-ABFE-5A1A53FC59B5}
+	EndGlobalSection
+EndGlobal
