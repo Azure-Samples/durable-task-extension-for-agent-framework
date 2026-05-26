@@ -35,9 +35,10 @@ services:
           run: |
             # Clean previous build
             Remove-Item -Path build -Recurse -Force -ErrorAction SilentlyContinue
-            # Set the API URL from azd environment
-            $API_URL = "${SERVICE_API_URI}/api"
-            Write-Host "SERVICE_API_URI from azd: ${SERVICE_API_URI}"
+            # Get the API URL from azd environment using azd env get-values
+            $envVars = azd env get-values | ConvertFrom-Json
+            $API_URL = "$($envVars.SERVICE_API_URI)/api"
+            Write-Host "SERVICE_API_URI from azd: $($envVars.SERVICE_API_URI)"
             Write-Host "Setting REACT_APP_API_URL to: $API_URL"
             # Update .env.production file
             "REACT_APP_API_URL=$API_URL" | Out-File -FilePath .env.production -Encoding utf8
