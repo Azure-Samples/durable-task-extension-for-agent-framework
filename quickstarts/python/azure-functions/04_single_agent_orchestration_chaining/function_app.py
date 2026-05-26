@@ -61,11 +61,11 @@ def single_agent_orchestration(context: DurableOrchestrationContext):
     """Run the writer agent twice on the same thread to mirror chaining behaviour."""
 
     writer = app.get_agent(context, WRITER_AGENT_NAME)
-    writer_thread = writer.get_new_thread()
+    writer_session = writer.create_session()
 
     initial = yield writer.run(
         messages="Write a concise inspirational sentence about learning.",
-        thread=writer_thread,
+        session=writer_session,
     )
 
     improved_prompt = (
@@ -75,7 +75,7 @@ def single_agent_orchestration(context: DurableOrchestrationContext):
 
     refined = yield writer.run(
         messages=improved_prompt,
-        thread=writer_thread,
+        session=writer_session,
     )
 
     return refined.text

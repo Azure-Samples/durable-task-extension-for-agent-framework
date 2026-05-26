@@ -8,7 +8,7 @@ azure-identity>=1.15.0
 azure-storage-blob>=12.19.0
 
 # Durable Task / Agent Framework
-agent-framework-durabletask==0.0.2b260126
+agent-framework-durabletask>=1.0.0b260212
 durabletask>=0.1.0
 
 # OpenAI

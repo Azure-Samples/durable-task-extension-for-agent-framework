@@ -100,7 +100,7 @@ def spam_detection_orchestration(context: DurableOrchestrationContext):
     spam_agent = app.get_agent(context, SPAM_AGENT_NAME)
     email_agent = app.get_agent(context, EMAIL_AGENT_NAME)
 
-    spam_thread = spam_agent.get_new_thread()
+    spam_session = spam_agent.create_session()
 
     spam_prompt = (
         "Analyze this email for spam content and return a JSON response with 'is_spam' (boolean) "
@@ -111,19 +111,19 @@ def spam_detection_orchestration(context: DurableOrchestrationContext):
 
     spam_result_raw = yield spam_agent.run(
         messages=spam_prompt,
-        thread=spam_thread,
+        session=spam_session,
         options={"response_format": SpamDetectionResult},
     )
 
-    spam_result = spam_result_raw.try_parse_value(SpamDetectionResult)
-    if spam_result is None:
+    spam_result = spam_result_raw.value
+    if not isinstance(spam_result, SpamDetectionResult):
         raise ValueError("Failed to parse spam detection result")
 
     if spam_result.is_spam:
         result = yield context.call_activity("handle_spam_email", spam_result.reason)
         return result
 
-    email_thread = email_agent.get_new_thread()
+    email_session = email_agent.create_session()
 
     email_prompt = (
         "Draft a professional response to this email. Return a JSON response with a 'response' field "
@@ -134,12 +134,12 @@ def spam_detection_orchestration(context: DurableOrchestrationContext):
 
     email_result_raw = yield email_agent.run(
         messages=email_prompt,
-        thread=email_thread,
+        session=email_session,
         options={"response_format": EmailResponse},
     )
 
-    email_result = email_result_raw.try_parse_value(EmailResponse)
-    if email_result is None:
+    email_result = email_result_raw.value
+    if not isinstance(email_result, EmailResponse):
         raise ValueError("Failed to parse email response")
 
     result = yield context.call_activity("send_email", email_result.response)

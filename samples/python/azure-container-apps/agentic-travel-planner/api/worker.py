@@ -66,18 +66,19 @@ def parse_agent_response(result: Any, model_class: type) -> Any:
     import json
     import re
     
-    # Try the new SDK's try_parse_value method first
-    if hasattr(result, 'try_parse_value'):
-        parsed = result.try_parse_value(model_class)
-        if parsed is not None:
-            return parsed
+    # Try the SDK's .value property first (may raise ValidationError)
+    if hasattr(result, 'value'):
+        try:
+            parsed = result.value
+            if isinstance(parsed, model_class):
+                return parsed
+        except Exception:
+            pass
     
     # Get raw text from various possible attributes
     raw_text = None
     if hasattr(result, 'text'):
         raw_text = result.text
-    elif hasattr(result, 'value'):
-        raw_text = result.value
     else:
         raw_text = result
     
@@ -320,7 +321,7 @@ def travel_planner_orchestration(
         # Step 1: Get destination recommendations
         logger.info("Step 1: Getting destination recommendations")
         destination_agent = agent_ctx.get_agent("DestinationRecommenderAgent")
-        destination_thread = destination_agent.get_new_thread()
+        destination_session = destination_agent.create_session()
         
         destination_prompt = f"""Based on the following preferences, recommend 3 travel destinations:
 User: {travel_request.user_name}
@@ -334,7 +335,7 @@ Provide detailed explanations for each recommendation highlighting why it matche
 
         destinations_result = yield destination_agent.run(
             messages=destination_prompt,
-            thread=destination_thread
+            session=destination_session
         )
         
         # Parse the agent response using helper
@@ -358,7 +359,7 @@ Provide detailed explanations for each recommendation highlighting why it matche
         # Step 2: Create itinerary for top destination
         logger.info("Step 2: Creating itinerary")
         itinerary_agent = agent_ctx.get_agent("ItineraryPlannerAgent")
-        itinerary_thread = itinerary_agent.get_new_thread()
+        itinerary_session = itinerary_agent.create_session()
         
         itinerary_prompt = f"""Create a detailed daily itinerary for a trip to {top_destination.destination_name}:
 Duration: {travel_request.duration_in_days} days
@@ -370,7 +371,7 @@ Include a mix of sightseeing, cultural activities, and relaxation time with real
 
         itinerary_result = yield itinerary_agent.run(
             messages=itinerary_prompt,
-            thread=itinerary_thread
+            session=itinerary_session
         )
         
         # Parse the agent response using helper
@@ -386,7 +387,7 @@ Include a mix of sightseeing, cultural activities, and relaxation time with real
         # Step 3: Get local recommendations
         logger.info("Step 3: Getting local recommendations")
         local_agent = agent_ctx.get_agent("LocalRecommendationsAgent")
-        local_thread = local_agent.get_new_thread()
+        local_session = local_agent.create_session()
         
         local_prompt = f"""Provide local recommendations for {top_destination.destination_name}:
 Duration of Stay: {travel_request.duration_in_days} days
@@ -396,7 +397,7 @@ Provide authentic local attractions, restaurants, and insider tips."""
 
         local_result = yield local_agent.run(
             messages=local_prompt,
-            thread=local_thread
+            session=local_session
         )
         
         # Parse the agent response using helper
